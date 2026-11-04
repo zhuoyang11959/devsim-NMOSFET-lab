@@ -1,0 +1,15 @@
+name: nmosfet-lab
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - numpy
+  - matplotlib
+  - scipy
+  - jupyterlab
+  - ipykernel
+  - pip:
+      - devsim==2.11.2
+
+
