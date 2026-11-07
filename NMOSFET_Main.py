@@ -2,8 +2,7 @@
 Notebook: import NMOSFET_Main as demo, then demo.run().
 """
 from pathlib import Path
-import json,time,csv,sys
-from contextlib import redirect_stdout
+import json,time,csv
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.tri as mtri
@@ -29,22 +28,7 @@ def run():
     OUT.mkdir(exist_ok=True)
     lab.REL_ERROR=REL_ERROR
     start=time.perf_counter();maps={};result={}
-    console=sys.stdout
-    log_path=OUT/'solver_details.log'
-    log_path.write_text('',encoding='utf-8')
-    def initialize():
-        print('[Initialize] Building device and equilibrium solution...',file=console,flush=True)
-        with log_path.open('a',encoding='utf-8') as log, redirect_stdout(log):
-            seconds=lab.build()
-        print(f'[Initialize] Ready in {seconds:.1f} s',file=console,flush=True)
-    def bias(c,v):
-        before=time.perf_counter()
-        vg=float(v) if c=='gate' else lab.ds.get_parameter(device='mos2d',name=lab.GetContactBiasName('gate'))
-        vd=float(v) if c=='drain' else lab.ds.get_parameter(device='mos2d',name=lab.GetContactBiasName('drain'))
-        print(f'[Solving target] VG={vg:.3f} V, VD={vd:.3f} V',file=console,flush=True)
-        with log_path.open('a',encoding='utf-8') as log, redirect_stdout(log):
-            lab.bias(c,float(v),step=BIAS_STEP)
-        print(f'[Converged] VG={vg:.3f} V, VD={vd:.3f} V; {time.perf_counter()-before:.1f} s',file=console,flush=True)
+    def bias(c,v):lab.bias(c,float(v),step=BIAS_STEP)
     def capture(vg,vd):
         if not RUN_MAPS:return
         for name,g,d in STATES:
@@ -62,11 +46,11 @@ def run():
             capture(float(v) if c=='gate' else fixed, fixed if c=='gate' else float(v))
         return rows
     if RUN_CURVES:
-        initialize();bias('drain',TRANSFER_DRAIN)
+        lab.build();bias('drain',TRANSFER_DRAIN)
         result['transfer']=sweep('gate',VG_VALUES,TRANSFER_DRAIN)
         result['output']={}
         for vg in OUTPUT_GATES:
-            initialize();bias('gate',vg)
+            lab.build();bias('gate',vg)
             result['output'][str(vg)]=sweep('drain',VD_VALUES,vg)
         for name,rows in [('transfer',result['transfer'])]+[(f'output_VG_{g}',rr) for g,rr in result['output'].items()]:
             with (OUT/(name+'.csv')).open('w',newline='') as f:
@@ -83,7 +67,7 @@ def run():
         # Reuse states solved in the current sweeps. Solve only missing states.
         missing=[s for s in STATES if s[0] not in maps]
         if missing:
-            initialize()
+            lab.build()
             for name,vg,vd in missing:bias('gate',vg);bias('drain',vd);capture(vg,vd)
         fig,axs=plt.subplots(2,2,figsize=(12,7),layout='constrained')
         for ax,(name,vg,vd) in zip(axs.flat,STATES):
